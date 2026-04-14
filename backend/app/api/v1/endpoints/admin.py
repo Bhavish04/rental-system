@@ -208,3 +208,18 @@ async def unsuspend_user(
     )
     await db.commit()
     return {"status": "active", "user_id": user_id}
+
+@router.get("/properties/pending")
+async def pending_properties(
+    _: dict = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select
+    results = (await db.execute(
+        select(Property).where(Property.status == PropertyStatus.PENDING_REVIEW)
+    )).scalars().all()
+    return [{"id": str(p.id), "title": p.title, "city": p.city,
+             "neighbourhood": p.neighbourhood, "price_per_month": p.price_per_month,
+             "property_type": p.property_type, "bedrooms": p.bedrooms,
+             "created_at": p.created_at.isoformat() if p.created_at else None}
+            for p in results]

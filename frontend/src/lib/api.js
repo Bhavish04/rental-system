@@ -84,6 +84,7 @@ export const adminAPI = {
   moderate:    (id)       => api.post(`/admin/moderate/${id}`),
   approve:     (id)       => api.post(`/admin/approve/${id}`),
   reject:      (id, data) => api.post(`/admin/reject/${id}`, data),
+  pendingProperties: () => api.get('/admin/properties/pending'),
   users:       (page)     => api.get('/admin/users', { params: { page } }),
   suspend:     (id)       => api.post(`/admin/users/${id}/suspend`),
   unsuspend:   (id)       => api.post(`/admin/users/${id}/unsuspend`),
