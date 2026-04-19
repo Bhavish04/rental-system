@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: #0d0e12;
+    color: #f0f0f4;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #13141a; }
+  ::-webkit-scrollbar-thumb { background: #2a2b38; border-radius: 3px; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-full bg-accent text-bg font-semibold text-sm
+           transition-all hover:bg-accent2 hover:-translate-y-0.5 active:translate-y-0;
+  }
+  .btn-ghost {
+    @apply px-5 py-2.5 rounded-full border border-border2 text-text2 text-sm font-medium
+           transition-all hover:text-text1 hover:bg-card;
+  }
+  .btn-danger {
+    @apply px-5 py-2.5 rounded-full bg-red/10 text-red border border-red/30 text-sm font-medium
+           transition-all hover:bg-red/20;
+  }
+  .card {
+    @apply bg-card border border-border rounded-xl p-5;
+  }
+  .input {
+    @apply w-full bg-bg3 border border-border2 rounded-xl px-4 py-2.5 text-text1 text-sm
+           placeholder:text-text3 outline-none transition-all
+           focus:border-accent/50 focus:ring-1 focus:ring-accent/20;
+  }
+  .label {
+    @apply text-text2 text-xs font-medium mb-1.5 block;
+  }
+  .badge-fair {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full
+           bg-teal/10 border border-teal/30 text-teal text-xs font-medium;
+  }
+  .badge-status {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .section-title {
+    @apply font-display text-2xl font-bold text-text1 mb-1;
+  }
+  .divider {
+    @apply border-t border-border my-6;
+  }
+  .stat-card {
+    @apply card flex flex-col gap-1;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.animate-fade-in  { animation: fadeIn 0.3s ease forwards; }
+.animate-slide-up { animation: slideUp 0.4s ease forwards; }
+.typing-dot { animation: pulse-dot 1.2s ease infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
