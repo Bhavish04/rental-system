@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from 'react-query'
 import toast from 'react-hot-toast'
 import { propertiesAPI } from '@/lib/api'
-import { Home, Upload, MapPin, DollarSign, Grid, CheckCircle } from 'lucide-react'
+import { Home, Upload, MapPin, DollarSign, Grid, CheckCircle, X } from 'lucide-react'
 
 const AMENITY_OPTIONS = [
   'wifi', 'parking', 'gym', 'swimming_pool', 'security',
@@ -17,6 +17,7 @@ export default function CreateListingPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [step, setStep] = useState(1)
+  const [images, setImages] = useState([])
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -52,6 +53,22 @@ export default function CreateListingPage() {
     }
   )
 
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files).slice(0, 5 - images.length)
+    const readers = files.map(file => new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = (ev) => resolve({ url: ev.target.result, name: file.name })
+      reader.readAsDataURL(file)
+    }))
+    Promise.all(readers).then(results => {
+      setImages(prev => [...prev, ...results].slice(0, 5))
+    })
+  }
+
+  const removeImage = (index) => {
+    setImages(prev => prev.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = () => {
     if (!form.title || !form.city || !form.price_per_month) {
       toast.error('Please fill all required fields')
@@ -75,6 +92,7 @@ export default function CreateListingPage() {
     { id: 2, label: 'Location', icon: MapPin },
     { id: 3, label: 'Pricing', icon: DollarSign },
     { id: 4, label: 'Amenities', icon: Grid },
+    { id: 5, label: 'Photos', icon: Upload },
   ]
 
   return (
@@ -105,19 +123,16 @@ export default function CreateListingPage() {
       {step === 1 && (
         <div className="card space-y-4 animate-fade-in">
           <h2 className="font-semibold text-text1 flex items-center gap-2"><Home size={16} className="text-accent" /> Basic Information</h2>
-
           <div>
             <label className="label">Property Title *</label>
             <input className="input" placeholder="e.g. Spacious 2BHK in Indiranagar"
               value={form.title} onChange={e => set('title', e.target.value)} />
           </div>
-
           <div>
             <label className="label">Description</label>
             <textarea className="input h-24 resize-none" placeholder="Describe your property..."
               value={form.description} onChange={e => set('description', e.target.value)} />
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Property Type *</label>
@@ -151,7 +166,6 @@ export default function CreateListingPage() {
                 value={form.building_age_years} onChange={e => set('building_age_years', e.target.value)} />
             </div>
           </div>
-
           <button onClick={() => setStep(2)} className="btn-primary w-full">Next: Location →</button>
         </div>
       )}
@@ -160,13 +174,11 @@ export default function CreateListingPage() {
       {step === 2 && (
         <div className="card space-y-4 animate-fade-in">
           <h2 className="font-semibold text-text1 flex items-center gap-2"><MapPin size={16} className="text-accent" /> Location Details</h2>
-
           <div>
             <label className="label">Full Address *</label>
             <input className="input" placeholder="e.g. 123 Main Street, Apt 4B"
               value={form.address} onChange={e => set('address', e.target.value)} />
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">City *</label>
@@ -184,7 +196,6 @@ export default function CreateListingPage() {
                 value={form.pincode} onChange={e => set('pincode', e.target.value)} />
             </div>
           </div>
-
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} className="btn-ghost flex-1">← Back</button>
             <button onClick={() => setStep(3)} className="btn-primary flex-1">Next: Pricing →</button>
@@ -196,14 +207,12 @@ export default function CreateListingPage() {
       {step === 3 && (
         <div className="card space-y-4 animate-fade-in">
           <h2 className="font-semibold text-text1 flex items-center gap-2"><DollarSign size={16} className="text-accent" /> Pricing</h2>
-
           <div>
             <label className="label">Monthly Rent (₹) *</label>
             <input type="number" className="input text-xl font-bold" placeholder="e.g. 25000"
               value={form.price_per_month} onChange={e => set('price_per_month', e.target.value)} />
             <p className="text-text3 text-xs mt-1">Set a competitive price based on your neighbourhood</p>
           </div>
-
           {form.price_per_month && (
             <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
               <p className="text-text3 text-xs">Monthly Rent</p>
@@ -212,7 +221,6 @@ export default function CreateListingPage() {
               </p>
             </div>
           )}
-
           <div className="flex gap-3">
             <button onClick={() => setStep(2)} className="btn-ghost flex-1">← Back</button>
             <button onClick={() => setStep(4)} className="btn-primary flex-1">Next: Amenities →</button>
@@ -225,7 +233,6 @@ export default function CreateListingPage() {
         <div className="card space-y-4 animate-fade-in">
           <h2 className="font-semibold text-text1 flex items-center gap-2"><Grid size={16} className="text-accent" /> Amenities</h2>
           <p className="text-text3 text-sm">Select all amenities available in your property</p>
-
           <div className="flex flex-wrap gap-2">
             {AMENITY_OPTIONS.map(a => (
               <button
@@ -245,7 +252,6 @@ export default function CreateListingPage() {
               </button>
             ))}
           </div>
-
           <div className="border-t border-border pt-4">
             <h3 className="text-text2 text-sm font-medium mb-2">Summary</h3>
             <div className="text-text3 text-xs space-y-1">
@@ -254,9 +260,75 @@ export default function CreateListingPage() {
               <p>💰 ₹{Number(form.price_per_month).toLocaleString('en-IN')}/mo</p>
             </div>
           </div>
-
           <div className="flex gap-3">
             <button onClick={() => setStep(3)} className="btn-ghost flex-1">← Back</button>
+            <button onClick={() => setStep(5)} className="btn-primary flex-1">Next: Photos →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 5 - Photos */}
+      {step === 5 && (
+        <div className="card space-y-4 animate-fade-in">
+          <h2 className="font-semibold text-text1 flex items-center gap-2">
+            <Upload size={16} className="text-accent" /> Upload Photos
+          </h2>
+          <p className="text-text3 text-sm">Upload up to 5 photos of your property (optional)</p>
+
+          {images.length < 5 && (
+            <label className="block border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-accent/50 transition-colors">
+              <Upload size={28} className="mx-auto text-text3 mb-2" />
+              <p className="text-text2 text-sm font-medium">Click to upload photos</p>
+              <p className="text-text3 text-xs mt-1">JPG, PNG — up to 5 photos, max 5MB each</p>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+            </label>
+          )}
+
+          {images.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              {images.map((img, i) => (
+                <div key={i} className="relative group rounded-xl overflow-hidden aspect-video bg-bg3">
+                  <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X size={12} />
+                  </button>
+                  {i === 0 && (
+                    <span className="absolute bottom-1 left-1 text-xs bg-accent text-white px-1.5 py-0.5 rounded-md">
+                      Primary
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {images.length > 0 && (
+            <p className="text-text3 text-xs">{images.length}/5 photos uploaded</p>
+          )}
+
+          <div className="border-t border-border pt-4">
+            <h3 className="text-text2 text-sm font-medium mb-2">Final Summary</h3>
+            <div className="text-text3 text-xs space-y-1">
+              <p>🏷️ {form.title}</p>
+              <p>📍 {form.neighbourhood}, {form.city}</p>
+              <p>🏠 {form.bedrooms}BHK {form.property_type} · {form.bathrooms} bath</p>
+              <p>💰 ₹{Number(form.price_per_month).toLocaleString('en-IN')}/mo</p>
+              <p>📸 {images.length} photo{images.length !== 1 ? 's' : ''} uploaded</p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={() => setStep(4)} className="btn-ghost flex-1">← Back</button>
             <button
               onClick={handleSubmit}
               disabled={createMutation.isLoading}

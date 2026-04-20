@@ -54,6 +54,7 @@ export const propertiesAPI = {
   create:     (data)   => api.post('/properties/', data),
   update:     (id, d)  => api.patch(`/properties/${id}`, d),
   myListings: ()       => api.get('/properties/owner/my'),
+  addPhotos:  (propertyId, photos) => api.post(`/properties/${propertyId}/photos`, { photos }),
 }
 
 // ── Bookings ──────────────────────────────────────────────────────────────
@@ -79,13 +80,13 @@ export const aiAPI = {
 
 // ── Admin ─────────────────────────────────────────────────────────────────
 export const adminAPI = {
-  reports:     (params)   => api.get('/admin/reports', { params }),
-  leaderboard: (params)   => api.get('/admin/leaderboard', { params }),
-  moderate:    (id)       => api.post(`/admin/moderate/${id}`),
-  approve:     (id)       => api.post(`/admin/approve/${id}`),
-  reject:      (id, data) => api.post(`/admin/reject/${id}`, data),
-  pendingProperties: () => api.get('/admin/properties/pending'),
-  users:       (page)     => api.get('/admin/users', { params: { page } }),
-  suspend:     (id)       => api.post(`/admin/users/${id}/suspend`),
-  unsuspend:   (id)       => api.post(`/admin/users/${id}/unsuspend`),
+  reports:           (params)   => api.get('/admin/reports', { params }),
+  leaderboard:       (params)   => api.get('/admin/leaderboard', { params }),
+  moderate:          (id)       => api.post(`/admin/moderate/${id}`),
+  approve:           (id)       => api.post(`/admin/approve/${id}`),
+  reject:            (id, data) => api.post(`/admin/reject/${id}`, data),
+  pendingProperties: ()         => api.get('/admin/properties/pending'),
+  users:             (page)     => api.get('/admin/users', { params: { page } }),
+  suspend:           (id)       => api.post(`/admin/users/${id}/suspend`),
+  unsuspend:         (id)       => api.post(`/admin/users/${id}/unsuspend`),
 }
