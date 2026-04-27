@@ -223,3 +223,32 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_review_rating
   AFTER INSERT OR UPDATE ON reviews
   FOR EACH ROW EXECUTE FUNCTION update_property_rating();
+
+-- 1. Add approval status to properties (if not already there)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'
+  CHECK (status IN ('pending','approved','rejected','sold'));
+
+-- 2. Interest / Leads table
+CREATE TABLE IF NOT EXISTS property_interests (
+  id          SERIAL PRIMARY KEY,
+  property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  buyer_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at  TIMESTAMP DEFAULT NOW(),
+  UNIQUE(property_id, buyer_id)
+);
+
+-- 3. Transaction / Deal table
+CREATE TABLE IF NOT EXISTS property_transactions (
+  id              SERIAL PRIMARY KEY,
+  property_id     INTEGER NOT NULL REFERENCES properties(id),
+  buyer_id        INTEGER NOT NULL REFERENCES users(id),
+  owner_id        INTEGER NOT NULL REFERENCES users(id),
+  status          VARCHAR(20) DEFAULT 'requested'
+                  CHECK (status IN ('requested','approved','rejected','payment_pending','paid','completed')),
+  offer_price     NUMERIC(12,2),
+  razorpay_order_id   VARCHAR(100),
+  razorpay_payment_id VARCHAR(100),
+  contract_path   VARCHAR(255),
+  created_at      TIMESTAMP DEFAULT NOW(),
+  updated_at      TIMESTAMP DEFAULT NOW()
+);

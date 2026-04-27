@@ -3,8 +3,11 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from app.api.v1.endpoints.deals import router as deals_router
 
 from app.core.config import get_settings
 from app.api.v1.endpoints import auth, properties, bookings, reviews, ai, admin
@@ -18,7 +21,6 @@ async def lifespan(app: FastAPI):
     logger.info("rentsmart.startup", env=settings.ENV)
     yield
     logger.info("rentsmart.shutdown")
-
 
 app = FastAPI(
     title="RentSmart API",
@@ -38,6 +40,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve uploaded images
+os.makedirs("static/uploads", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Health check
+@app.get("/health", tags=["ops"])
+
 # Health check
 @app.get("/health", tags=["ops"])
 async def health():
@@ -56,3 +65,4 @@ app.include_router(bookings.router,   prefix="/api/v1/bookings",   tags=["Bookin
 app.include_router(reviews.router,    prefix="/api/v1/reviews",    tags=["Reviews"])
 app.include_router(ai.router,         prefix="/api/v1/ai",         tags=["AI"])
 app.include_router(admin.router,      prefix="/api/v1/admin",      tags=["Admin"])
+app.include_router(deals_router,      prefix="/api/v1")

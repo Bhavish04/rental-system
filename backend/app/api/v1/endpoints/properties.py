@@ -83,11 +83,16 @@ async def create_property(
     await db.commit()
     await db.refresh(prop)
 
+    # Reload with photos eagerly to avoid async lazy load error
+    prop = await _get_or_404(str(prop.id), db)
+
     # Index into Pinecone for chatbot RAG
-    await index_property_to_pinecone(_serialize(prop))
+    try:
+        await index_property_to_pinecone(_serialize(prop))
+    except Exception:
+        pass
 
     return _serialize(prop)
-
 
 @router.patch("/{property_id}")
 async def update_property(
@@ -116,17 +121,108 @@ async def my_properties(
 ):
     results = (
         await db.execute(
-            select(Property).where(Property.owner_id == uuid.UUID(current_user["sub"]))
+            select(Property)
+            .where(Property.owner_id == uuid.UUID(current_user["sub"]))
+            .options(selectinload(Property.photos))
         )
     ).scalars().all()
     return [_serialize(p) for p in results]
 
+@router.post("/{property_id}/photos")
+async def add_photos(
+    property_id: str,
+    body: dict,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    import os, base64, re
+
+    prop = await _get_or_404(property_id, db)
+    if str(prop.owner_id) != current_user["sub"] and current_user["role"] != "admin":
+        raise HTTPException(403, "Not your property")
+
+    # Use absolute path relative to this file
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+    upload_dir = os.path.join(base_dir, "static", "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    photos = body.get("photos", [])
+    saved = 0
+
+    for i, photo_data in enumerate(photos):
+        url = photo_data if isinstance(photo_data, str) else photo_data.get("url", "")
+        if not url:
+            continue
+
+        if url.startswith("data:image"):
+            try:
+                match = re.match(r'data:image/(\w+);base64,(.+)', url, re.DOTALL)
+                if not match:
+                    # try jpeg
+                    match = re.match(r'data:image/jpeg;base64,(.+)', url, re.DOTALL)
+                    if match:
+                        ext = 'jpg'
+                        data = base64.b64decode(match.group(1))
+                    else:
+                        continue
+                else:
+                    ext = match.group(1)
+                    if ext == 'jpeg':
+                        ext = 'jpg'
+                    data = base64.b64decode(match.group(2))
+
+                filename = f"{uuid.uuid4()}.{ext}"
+                filepath = os.path.join(upload_dir, filename)
+                with open(filepath, "wb") as f:
+                    f.write(data)
+                url = f"/static/uploads/{filename}"
+            except Exception as e:
+                print(f"[PHOTOS] Error saving photo {i}: {e}")
+                continue
+        
+        ph = PropertyPhoto(
+            property_id=prop.id,
+            url=url,
+            is_primary=(i == 0),
+            sort_order=i,
+        )
+        db.add(ph)
+        saved += 1
+
+    await db.commit()
+    return {"message": f"{saved} photos saved"}
+
+@router.delete("/{property_id}")
+async def delete_property(
+    property_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import delete as sa_delete
+    from app.models.interest import PropertyInterest
+    from app.models.transaction import PropertyTransaction
+
+    prop = await _get_or_404(property_id, db)
+    if str(prop.owner_id) != current_user["sub"] and current_user["role"] != "admin":
+        raise HTTPException(403, "Not your property")
+
+    from app.models.models import ModerationLog
+    # Delete related records first to avoid FK violations
+    await db.execute(sa_delete(PropertyInterest).where(PropertyInterest.property_id == prop.id))
+    await db.execute(sa_delete(PropertyTransaction).where(PropertyTransaction.property_id == prop.id))
+    await db.execute(sa_delete(ModerationLog).where(ModerationLog.property_id == prop.id))
+    await db.delete(prop)
+    await db.commit()
+    return {"message": "Property deleted"}
 
 # ── Helpers ──────────────────────────────────────────────────────────────
-
 async def _get_or_404(property_id: str, db: AsyncSession) -> Property:
     prop = (
-        await db.execute(select(Property).where(Property.id == uuid.UUID(property_id)))
+        await db.execute(
+            select(Property)
+            .where(Property.id == uuid.UUID(property_id))
+            .options(selectinload(Property.photos))
+        )
     ).scalar_one_or_none()
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
@@ -158,5 +254,6 @@ def _serialize(p: Property) -> dict:
         "total_reviews": p.total_reviews,
         "owner_id": str(p.owner_id),
         "created_at": p.created_at.isoformat() if p.created_at else None,
-        "photos": [],
+        "photos": [{"url": ph.url, "is_primary": ph.is_primary}
+                   for ph in (p.photos or [])],
     }

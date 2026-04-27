@@ -293,12 +293,21 @@ export default function AdminPage() {
                   Period: last {period} days · {report.start_date?.slice(0, 10)}{" "}
                   → {report.end_date?.slice(0, 10)}
                 </p>
-                <a
-                  href={`/api/v1/admin/reports?start=${start}&end=${end}&fmt=csv`}
-                  className="btn-ghost text-xs py-1.5 px-3 ml-auto flex items-center gap-1"
-                >
-                  <FileText size={12} /> Export CSV
-                </a>
+              <button
+  onClick={async () => {
+    const token = localStorage.getItem('access_token')
+    const url = `http://localhost:8000/api/v1/admin/reports?start=${start}&end=${end}&fmt=csv`
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'report.csv'
+    a.click()
+  }}
+  className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1"
+>
+  📥 Export CSV
+</button>
               </div>
             </>
           )}

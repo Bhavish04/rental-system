@@ -40,7 +40,24 @@ export default function CreateListingPage() {
   const set = (key, value) => setForm(p => ({ ...p, [key]: value }))
 
   const createMutation = useMutation(
-    (data) => propertiesAPI.create(data),
+    async (data) => {
+      // Step 1: create the property
+      const res = await propertiesAPI.create(data)
+      const propertyId = res.data.id
+
+      // Step 2: upload photos if any — don't fail if this errors
+      if (images.length > 0) {
+        try {
+          await propertiesAPI.addPhotos(propertyId, {
+            photos: images.map(img => img.url)
+          })
+        } catch (e) {
+          console.warn('Photo upload failed:', e)
+          // still continue — listing was created
+        }
+      }
+      return res
+    },
     {
       onSuccess: () => {
         toast.success('Property listed successfully!')

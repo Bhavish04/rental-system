@@ -1,9 +1,9 @@
 // src/pages/DashboardPage.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { bookingsAPI, reviewsAPI } from '@/lib/api'
+import { bookingsAPI, reviewsAPI, dealsAPI } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import {
   Calendar, MapPin, Star, XCircle, Clock,
@@ -34,6 +34,14 @@ export default function DashboardPage() {
   const [reviewModal, setReviewModal] = useState(null)
   const [reviewText, setReviewText] = useState('')
   const [reviewRating, setReviewRating] = useState(5)
+  const [myRequests, setMyRequests] = useState([])
+  const [payingTxn, setPayingTxn] = useState(null)
+  useEffect(() => {
+  const token = localStorage.getItem('access_token')
+  fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/deals/buyer/requests`, {
+    headers: { Authorization: `Bearer ${token}` }
+  }).then(r => r.json()).then(d => Array.isArray(d) && setMyRequests(d)).catch(() => {})
+}, [])
 
   const { data: bookingsData, isLoading } = useQuery(
     'my-bookings',
@@ -65,7 +73,44 @@ export default function DashboardPage() {
       onError: () => toast.error('Could not submit review'),
     }
   )
+const loadRazorpay = () => new Promise(resolve => {
+  if (window.Razorpay) return resolve(true)
+  const s = document.createElement('script')
+  s.src = 'https://checkout.razorpay.com/v1/checkout.js'
+  s.onload = () => resolve(true)
+  s.onerror = () => resolve(false)
+  document.body.appendChild(s)
+})
 
+const handlePayNow = async (txn) => {
+  await loadRazorpay()
+  const options = {
+    key: 'rzp_test_ShIoLRyystW4Nk',
+    amount: txn.offer_price * 100,
+    currency: 'INR',
+    name: 'RentSmart',
+    description: `Purchase: ${txn.property_title}`,
+    order_id: txn.razorpay_order_id,
+    handler: async (response) => {
+      try {
+        await dealsAPI.verifyPayment(txn.id, {
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
+        })
+        toast.success('🎉 Payment successful! Contract generated.')
+        setMyRequests(prev => prev.map(r =>
+          r.id === txn.id ? { ...r, status: 'completed',
+            contract_url: `/api/v1/deals/contract/${txn.id}` } : r))
+      } catch {
+        toast.error('Payment verification failed')
+      }
+    },
+    theme: { color: '#e8a87c' },
+  }
+  const rzp = new window.Razorpay(options)
+  rzp.open()
+}
   const bookings = bookingsData || []
   const stats = {
     total: bookings.length,
@@ -78,6 +123,7 @@ export default function DashboardPage() {
 
   const tabs = [
     { id: 'bookings', label: 'My Bookings', icon: <Calendar size={15} /> },
+    { id: 'purchases', label: 'My Purchases',  icon: <CheckCircle size={15} /> },
     { id: 'wishlist', label: 'Wishlist',    icon: <Heart size={15} /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell size={15} /> },
   ]
@@ -216,7 +262,60 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
-
+{/* Purchases Tab */}
+{activeTab === 'purchases' && (
+  <div className="space-y-4">
+    {myRequests.length === 0 && (
+      <div className="card text-center py-16">
+        <CheckCircle size={40} className="mx-auto text-text3 mb-3" />
+        <p className="text-text2 font-medium">No purchase requests yet</p>
+        <p className="text-text3 text-sm mb-4">Browse properties and click "Request to Buy"</p>
+        <Link to="/search" className="btn-primary inline-flex">Browse Properties</Link>
+      </div>
+    )}
+    {myRequests.map(r => (
+      <div key={r.id} className="card flex items-center justify-between gap-4 animate-fade-in">
+        <div>
+          <p className="text-text1 font-semibold">{r.property_title}</p>
+          <p className="text-text2 text-sm mt-0.5">
+            Offer: <span className="text-accent font-bold">
+              ₹{r.offer_price?.toLocaleString('en-IN')}
+            </span>
+          </p>
+          <span className={`text-xs px-2 py-0.5 rounded-full mt-1.5 inline-block border
+            ${r.status === 'requested'       ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+              r.status === 'payment_pending' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+              r.status === 'completed'       ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                               'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+            {r.status?.replace('_', ' ')}
+          </span>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          {r.status === 'payment_pending' && r.razorpay_order_id && (
+            <button
+              onClick={() => handlePayNow(r)}
+              className="btn-primary text-sm px-4 py-2 flex items-center gap-1.5">
+              💳 Pay Now
+            </button>
+          )}
+          {r.status === 'completed' && r.contract_url && (
+            <a href={`http://localhost:8000${r.contract_url}`}
+              target="_blank" rel="noreferrer"
+              className="btn-ghost text-sm px-4 py-2">
+              📄 Download Contract
+            </a>
+          )}
+          {r.status === 'requested' && (
+            <span className="text-text3 text-xs">Waiting for owner...</span>
+          )}
+          {r.status === 'rejected' && (
+            <span className="text-red-400 text-xs">Request rejected</span>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
       {/* Wishlist Tab */}
       {activeTab === 'wishlist' && (
         <div className="card text-center py-16">

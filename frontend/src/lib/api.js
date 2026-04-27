@@ -54,7 +54,8 @@ export const propertiesAPI = {
   create:     (data)   => api.post('/properties/', data),
   update:     (id, d)  => api.patch(`/properties/${id}`, d),
   myListings: ()       => api.get('/properties/owner/my'),
-  addPhotos:  (propertyId, photos) => api.post(`/properties/${propertyId}/photos`, { photos }),
+  delete:     (id)     => api.delete(`/properties/${id}`),
+  addPhotos:  (propertyId, data) => api.post(`/properties/${propertyId}/photos`, data),
 }
 
 // ── Bookings ──────────────────────────────────────────────────────────────
@@ -89,4 +90,16 @@ export const adminAPI = {
   users:             (page)     => api.get('/admin/users', { params: { page } }),
   suspend:           (id)       => api.post(`/admin/users/${id}/suspend`),
   unsuspend:         (id)       => api.post(`/admin/users/${id}/unsuspend`),
+}
+// ── Deals ─────────────────────────────────────────────────────
+export const dealsAPI = {
+  ownerInterestCounts: ()              => api.get('/deals/owner/interest-counts'),
+  getInterests:    (propertyId)        => api.get(`/deals/interests/${propertyId}`),
+  markInterest:    (propertyId)        => api.post(`/deals/interest/${propertyId}`),
+  requestToBuy:    (propertyId, data)  => api.post(`/deals/request/${propertyId}`, data),
+  ownerRequests:   ()                  => api.get('/deals/owner/requests'),
+  decide:          (txnId, action)     => api.patch(`/deals/decision/${txnId}`, { action }),
+  verifyPayment:   (txnId, data)       => api.post(`/deals/payment/verify/${txnId}`, data),
+  downloadContract:(txnId)             => api.get(`/deals/contract/${txnId}`, { responseType: 'blob' }),
+  adminApprove:    (propertyId, action)=> api.patch(`/deals/admin/property/${propertyId}?action=${action}`),
 }
